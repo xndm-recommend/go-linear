@@ -12,8 +12,21 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/xndm-recommend/go-utils/errors_"
+
 	"github.com/gonum/matrix/mat64"
 )
+
+// Model contains a pointer to C's struct model (i.e., `*C.struct_model`). It is
+// returned after training and used for predicting.
+type LibLRClient struct {
+	ModelPath string
+	LRModel   *Model
+}
+
+type LibLROptions struct {
+	Model_path string // 模型路径
+}
 
 // Model contains a pointer to C's struct model (i.e., `*C.struct_model`). It is
 // returned after training and used for predicting.
@@ -102,12 +115,12 @@ func Train(X, y *mat64.Dense, bias float64, solverType int, c_, p, eps float64, 
 }
 
 // double predict(const struct model *model_, const struct feature_node *x);
-func Predict(model *Model, X *mat64.Dense) *mat64.Dense {
+func (c *LibLRClient) Predict(X *mat64.Dense) *mat64.Dense {
 	nRows, nCols := X.Dims()
 	cX := mapCDouble(X.RawMatrix().Data)
 	y := mat64.NewDense(nRows, 1, nil)
 	result := doubleToFloats(C.call_predict(
-		model.cModel, &cX[0], C.int(nRows), C.int(nCols)), nRows)
+		c.LRModel.cModel, &cX[0], C.int(nRows), C.int(nCols)), nRows)
 	y.SetCol(0, result)
 	return y
 }
@@ -145,7 +158,7 @@ func Accuracy(y_true, y_pred *mat64.Dense) float64 {
 	return correct / total
 }
 
-func SaveModel(model *Model, filename string) {
+func (c *LibLRClient) SaveModel(model *Model, filename string) {
 	rtn := C.save_model(C.CString(filename), model.cModel)
 	if int(rtn) != 0 {
 		errStr := fmt.Sprintf("Error Code `%v` when trying to save model", int(rtn))
@@ -154,13 +167,31 @@ func SaveModel(model *Model, filename string) {
 	}
 }
 
-func LoadModel(filename string) *Model {
+func (c *LibLRClient) LoadModel(filename string) error {
 	model := C.load_model(C.CString(filename))
 	if model == nil {
-		errStr := fmt.Sprintf("Can't load model from %v", filename)
-		panic(errors.New(errStr))
+		return fmt.Errorf("Can't load model from %v", c.ModelPath)
 	}
-	return &Model{
+	c.ModelPath = filename
+	c.LRModel = &Model{
 		cModel: model,
 	}
+	return nil
+}
+
+func (c *LibLRClient) init() {
+	// 模型初始化
+	errors_.CheckFatalErr(c.LoadModel(c.ModelPath))
+}
+
+func NewLibLRClient(opt *LibLROptions) (*LibLRClient, error) {
+	c := &LibLRClient{
+		ModelPath: opt.Model_path,
+		LRModel:   new(Model),
+	}
+	c.init()
+	if c.LRModel == nil {
+		errors_.CheckFatalErr(fmt.Errorf("Can't load model from %v", c.ModelPath))
+	}
+	return c, nil
 }
