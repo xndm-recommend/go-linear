@@ -1,53 +1,72 @@
-## Introduction
+LinearGo: LIBLINEAR for Go
+==========
 
-[![Report card](http://goreportcard.com/badge/danieldk/golinear)](http://goreportcard.com/report/danieldk/golinear)
-[![GoDoc](https://godoc.org/gopkg.in/danieldk/golinear.v1?status.svg)](https://godoc.org/gopkg.in/danieldk/golinear.v1)
+[![Build Status](https://travis-ci.org/lazywei/lineargo.svg?branch=master)](https://travis-ci.org/lazywei/lineargo)
+[![Go Report Card](https://goreportcard.com/badge/github.com/lazywei/lineargo)](https://goreportcard.com/report/github.com/lazywei/lineargo)
 
-golinear is a package for training and using linear classifiers in the Go
-programming language (golang).
+This is a Golang wrapper for [LIBLINEAR (C.-J. Lin et al.)](http://ntucsu.csie.ntu.edu.tw/~cjlin/liblinear/) ([GitHub](https://github.com/cjlin1/liblinear)).
+Note that the interface of this package might be slightly different from
+liblinear C interface because of Go convention. Yet, I'll try to align the
+function name and functionality to liblinear C library.
 
-## Installation
+**GoDoc**: [Document](https://godoc.org/github.com/lazywei/lineargo).
 
-To use this package, you need the
-[liblinear](http://www.csie.ntu.edu.tw/~cjlin/liblinear/) library. On Mac
-OS X, you can install this library with
-[Homebrew](http://mxcl.github.com/homebrew/):
+## Introduction to LIBLINEAR
 
-    brew install liblinear
+LIBLINEAR is a linear classifier for data with millions of instances and features. It supports
 
-Ubuntu and Debian provide packages for *liblinear*. However, at the time of
-writing (July 2, 2014), these were serverly outdated. This package requires
-version 1.9 or later.
+- L2-regularized classifiers
+- L2-loss linear SVM, L1-loss linear SVM, and logistic regression (LR)
+- L1-regularized classifiers (after version 1.4)
+- L2-loss linear SVM and logistic regression (LR)
+- L2-regularized support vector regression (after version 1.9)
+- L2-loss linear SVR and L1-loss linear SVR.
 
-This latest API-stable version (v1) can be installed with the <tt>go</tt>
-command:
 
-    go get gopkg.in/danieldk/golinear.v1
+## Install
 
-or included in your source code:
+This package depends on LIBLINEAR 2.1+ and Go 1.6+. Please install them first via Homebrew or
+other package managers on your OS:
 
-    import "gopkg.in/danieldk/golinear.v1"
+```
+brew update
+brew info liblinear # make sure your formula will install version higher than 2.1
+brew install liblinear
 
-The package documentation is available at: http://godoc.org/gopkg.in/danieldk/golinear.v1
+brew info go # make sure version 1.6+
+brew install go
+```
 
-### OpenMP
+After liblinear installation, just `go get` this package
 
-If you wish to use *liblinear* with OpenMP support for multicore processing, 
-please use this command to install the package:
+```
+go get github.com/lazywei/lineargo
+```
 
-    CGO_LDFLAGS="-lgomp" CGO_CFLAGS="-DCV_OMP" go get github.com/danieldk/golinear
+## Usage
 
-## Plans
+*The package is based on [mat64](https://godoc.org/github.com/gonum/matrix/mat64).*
 
-1. Port classification to Go.
-2. Port training to Go.
+```go
+import linear "github.com/lazywei/lineargo"
 
-We will take a pragmatic approach to porting code to Go: if the performance penalty is minor,
-ported code will flow to the main branch. Otherwise, we will keep it around until the performance
-is good enough.
+// ReadLibsvm(filepath string, oneBased bool) (X, y *mat64.Dense)
+X, y := linear.ReadLibsvm("heart_scale", true)
 
-## Examples
+// Train(X, y *mat64.Dense, bias float64, solverType int,
+// 	C_, p, eps float64,
+// 	classWeights map[int]float64) (*Model)
+// Please checkout liblinear's doc for the explanation for these parameters.
+model := linear.Train(X, y, -1, linear.L2R_LR, 1.0, 0.1, 0.01, map[int]float64{1: 1, -1: 1})
+y_pred:= linear.Predict(model, X)
 
-Examples for using golinear can be found at:
+fmt.Println(linear.Accuracy(y, y_pred))
+```
 
-https://github.com/danieldk/golinear-examples
+## Self-Promotion
+
+This package is mainly built because of
+[mockingbird](https://github.com/lazywei/mockingbird), which is a programming
+language classifier in Go. Mockingbird is my Google Summer of Code 2015 Project
+with GitHub and [linguist](https://github.com/github/linguist). If you like it,
+please feel free to follow linguist, mockingbird, and this library.
