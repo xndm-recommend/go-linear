@@ -136,7 +136,6 @@ func (c *LibLRClient) PredictProba(X *mat64.Dense) *mat64.Dense {
 	result := doubleToFloats(C.call_predict_proba(
 		c.LRModel.cModel, &cX[0], C.int(nRows), C.int(nCols), C.int(nrClasses)),
 		nRows*nrClasses)
-	fmt.Println("result result", result)
 	for i := 0; i < nRows; i++ {
 		y.SetRow(i, result[i*nrClasses:(i+1)*nrClasses])
 	}
